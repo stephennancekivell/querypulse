@@ -1,12 +1,9 @@
-package driver2
+package querypulse
 
 import (
 	"context"
-	"database/sql"
 	"database/sql/driver"
 )
-
-var errConnDone = sql.ErrConnDone
 
 // Compile time assertion
 var (
@@ -15,18 +12,13 @@ var (
 )
 
 // WrapConnector allows wrapping a database driver.Connector which eliminates
-// the need to register zipkinsql as an available driver.Driver.
-func WrapConnector(dc driver.Connector, options ...TraceOption) driver.Connector {
-	opts := TraceOptions{}
-	for _, o := range options {
-		o(&opts)
-	}
+// the need to register it as an available driver.Driver.
+func WrapConnector(dc driver.Connector, options Options) driver.Connector {
 
 	return &zDriver{
 		parent:    dc.Driver(),
 		connector: dc,
-
-		options: opts,
+		options:   options,
 	}
 }
 
@@ -34,18 +26,18 @@ func WrapConnector(dc driver.Connector, options ...TraceOption) driver.Connector
 type zDriver struct {
 	parent    driver.Driver
 	connector driver.Connector
-	// tracer    *zipkin.Tracer
-	options TraceOptions
+
+	options Options
 }
 
-func wrapDriver(d driver.Driver, o TraceOptions) driver.Driver {
+func wrapDriver(d driver.Driver, o Options) driver.Driver {
 	if _, ok := d.(driver.DriverContext); ok {
 		return zDriver{parent: d, options: o}
 	}
 	return struct{ driver.Driver }{zDriver{parent: d, options: o}}
 }
 
-func wrapConn(parent driver.Conn, options TraceOptions) driver.Conn {
+func wrapConn(parent driver.Conn, options Options) driver.Conn {
 	var (
 		n, hasNameValueChecker = parent.(driver.NamedValueChecker)
 		s, hasSessionResetter  = parent.(driver.SessionResetter)
@@ -74,7 +66,7 @@ func wrapConn(parent driver.Conn, options TraceOptions) driver.Conn {
 	panic("unreachable")
 }
 
-func wrapStmt(stmt driver.Stmt, query string, options TraceOptions) driver.Stmt {
+func wrapStmt(stmt driver.Stmt, query string, options Options) driver.Stmt {
 	var (
 		_, hasExeCtx    = stmt.(driver.StmtExecContext)
 		_, hasQryCtx    = stmt.(driver.StmtQueryContext)
