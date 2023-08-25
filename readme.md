@@ -18,6 +18,12 @@ examples of queries to optimise.
 - Supports all database drivers. PostgreSQL, MySQL SQLite etc.
 - Supports [jmoiron/sqlx](https://github.com/jmoiron/sqlx). See [demo](https://github.com/stephennancekivell/querypulse/blob/main/demo/main.go#L47).
 
+## Install
+
+```sh
+go get github.com/stephennancekivell/querypulse
+```
+
 ## Usage
 
 ```go
