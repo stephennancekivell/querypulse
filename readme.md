@@ -1,6 +1,6 @@
 # QueryPulse
 
-QueryPulse is a golang database driver that provides a callback so you can easily log
+QueryPulse is a golang database [driver](database/sql/driver) that provides a callback so you can easily log
 database queries, their arguments and how long they took.
 
 When working with databases it can be tricky to understand when queries are slow. Sometimes
@@ -15,8 +15,8 @@ examples of queries to optimise.
 - Configure your own logging function
   - Only log slow queries
   - Format how you like it
-- Supports all database drivers
-- Supports sqlx. See demo.
+- Supports all database drivers. PostgreSQL, MySQL SQLite etc.
+- Supports [jmoiron/sqlx](https://github.com/jmoiron/sqlx). See [demo](https://github.com/stephennancekivell/querypulse/blob/main/demo/main.go#L47).
 
 ## Usage
 
