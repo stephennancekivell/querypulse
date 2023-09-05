@@ -1,23 +1,24 @@
 package querypulse
 
 import (
+	"context"
 	"database/sql/driver"
 	"time"
 )
 
 type Options struct {
-	OnSuccess func(query string, args []any, duration time.Duration)
+	OnSuccess func(ctx context.Context, query string, args []any, duration time.Duration)
 }
 
-func (o *Options) onSuccess(query string, args []driver.Value, duration time.Duration) {
+func (o *Options) onSuccess(ctx context.Context, query string, args []driver.Value, duration time.Duration) {
 	if o.OnSuccess != nil {
-		o.OnSuccess(query, toAnyArgs(args), duration)
+		o.OnSuccess(ctx, query, toAnyArgs(args), duration)
 	}
 }
 
-func (o *Options) onSuccessNamed(query string, args []driver.NamedValue, duration time.Duration) {
+func (o *Options) onSuccessNamed(ctx context.Context, query string, args []driver.NamedValue, duration time.Duration) {
 	if o.OnSuccess != nil {
-		o.OnSuccess(query, argsNamed(args), duration)
+		o.OnSuccess(ctx, query, argsNamed(args), duration)
 	}
 }
 

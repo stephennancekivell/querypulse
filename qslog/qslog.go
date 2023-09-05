@@ -1,6 +1,7 @@
 package qslog
 
 import (
+	"context"
 	"time"
 
 	"log/slog"
@@ -17,7 +18,7 @@ func Register(driverName string, log_ *slog.Logger) (string, error) {
 		log = slog.Default()
 	}
 
-	fn := func(query string, args []any, duration time.Duration) {
+	fn := func(ctx context.Context, query string, args []any, duration time.Duration) {
 		log.Info("query success", "query", query, "args", args, "took_ms", duration)
 	}
 	return querypulse.Register(driverName, querypulse.Options{OnSuccess: fn})

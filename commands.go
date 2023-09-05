@@ -96,7 +96,7 @@ func (c zConn) Exec(query string, args []driver.Value) (driver.Result, error) {
 		if err != nil {
 			return res, err
 		}
-		c.options.onSuccess(query, args, time.Since(start))
+		c.options.onSuccess(context.Background(), query, args, time.Since(start))
 		fmt.Printf("Exec took %v %v %v\n", time.Since(start), query, args)
 		return res, err
 	}
@@ -111,7 +111,7 @@ func (c zConn) ExecContext(ctx context.Context, query string, args []driver.Name
 		if err != nil {
 			return nil, err
 		}
-		c.options.onSuccessNamed(query, args, time.Since(start))
+		c.options.onSuccessNamed(ctx, query, args, time.Since(start))
 		return res, nil
 	}
 
@@ -125,7 +125,7 @@ func (c zConn) Query(query string, args []driver.Value) (driver.Rows, error) {
 		if err != nil {
 			return rows, err
 		}
-		c.options.onSuccess(query, args, time.Since(start))
+		c.options.onSuccess(context.Background(), query, args, time.Since(start))
 		return rows, nil
 	}
 
@@ -139,7 +139,7 @@ func (c zConn) QueryContext(ctx context.Context, query string, args []driver.Nam
 		if err != nil {
 			return nil, err
 		}
-		c.options.onSuccessNamed(query, args, time.Since(start))
+		c.options.onSuccessNamed(ctx, query, args, time.Since(start))
 
 		return rows, err
 	}
@@ -232,7 +232,7 @@ func (s zStmt) Query(args []driver.Value) (driver.Rows, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.options.onSuccess(s.query, args, time.Since(start))
+	s.options.onSuccess(context.Background(), s.query, args, time.Since(start))
 
 	return rows, err
 }
@@ -244,7 +244,7 @@ func (s zStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (drive
 	if err != nil {
 		return nil, err
 	}
-	s.options.onSuccessNamed(s.query, args, time.Since(start))
+	s.options.onSuccessNamed(ctx, s.query, args, time.Since(start))
 
 	return res, nil
 }
@@ -259,7 +259,7 @@ func (s zStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driv
 		return nil, err
 	}
 
-	s.options.onSuccessNamed(s.query, args, time.Since(start))
+	s.options.onSuccessNamed(ctx, s.query, args, time.Since(start))
 
 	return rows, err
 }

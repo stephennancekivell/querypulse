@@ -265,7 +265,7 @@ type queryMeta struct {
 
 func getDB(onSuccess func(meta queryMeta)) (*sql.DB, error) {
 
-	fn := func(query string, args []any, duration time.Duration) {
+	fn := func(ctx context.Context, query string, args []any, duration time.Duration) {
 		onSuccess(
 			queryMeta{
 				query:    query,

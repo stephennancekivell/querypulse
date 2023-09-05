@@ -22,7 +22,7 @@ func main() {
 	driverName, err := querypulse.Register(
 		"postgres",
 		querypulse.Options{
-			OnSuccess: func(query string, args []any, duration time.Duration) {
+			OnSuccess: func(ctx context.Context, query string, args []any, duration time.Duration) {
 				fmt.Printf("OnSuccess: %v %v %v\n", query, args, duration)
 			},
 		})
@@ -79,7 +79,7 @@ func main() {
 	slowDriver, err := querypulse.Register(
 		"postgres",
 		querypulse.Options{
-			OnSuccess: func(query string, args []any, duration time.Duration) {
+			OnSuccess: func(ctx context.Context, query string, args []any, duration time.Duration) {
 				if duration > 10*time.Second {
 					slog.Info("slow query", "query", query, "args", args, "took_ms", duration)
 				}
