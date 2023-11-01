@@ -13,7 +13,9 @@ import (
 
 var ctx context.Context = context.Background()
 
-func TestDb(t *testing.T) {
+func TestDb_success(t *testing.T) {
+
+	// test the onSuccess call back for all of these methods on db
 
 	testCases := []struct {
 		name string
@@ -67,13 +69,87 @@ func TestDb(t *testing.T) {
 		t.Run(v.name, func(t *testing.T) {
 			var meta queryMeta
 
-			db, err := getDB(func(meta_ queryMeta) { meta = meta_ })
+			db, err := getDB(func(meta_ queryMeta) { meta = meta_ }, nil)
 			assert.NoError(t, err)
 
 			err = v.run(db, "select $1", []any{1})
 			assert.NoError(t, err)
 
 			assertQuery(t, meta, "select $1", []any{int64(1)}, 1*time.Microsecond, 30*time.Microsecond)
+		})
+	}
+}
+
+func TestDb_error(t *testing.T) {
+
+	// test the onError call back for all of these methods on db
+
+	testCases := []struct {
+		name string
+		run  func(db *sql.DB, query string, args []any) error
+	}{
+		{
+			name: "Exec",
+			run: func(db *sql.DB, query string, args []any) error {
+				_, err := db.Exec(query, args...)
+				return err
+			},
+		},
+		{
+			name: "ExecContext",
+			run: func(db *sql.DB, query string, args []any) error {
+				_, err := db.ExecContext(ctx, query, args...)
+				return err
+			},
+		},
+		{
+			name: "Query",
+			run: func(db *sql.DB, query string, args []any) error {
+				_, err := db.Query(query, args...)
+				return err
+			},
+		},
+		{
+			name: "QueryContext",
+			run: func(db *sql.DB, query string, args []any) error {
+				_, err := db.QueryContext(ctx, query, args...)
+				return err
+			},
+		},
+		{
+			name: "QueryRow",
+			run: func(db *sql.DB, query string, args []any) error {
+				rows := db.QueryRow(query, args...)
+				return rows.Err()
+			},
+		},
+		{
+			name: "QueryRowContext",
+			run: func(db *sql.DB, query string, args []any) error {
+				rows := db.QueryRowContext(ctx, query, args...)
+				return rows.Err()
+			},
+		},
+	}
+
+	for _, v := range testCases {
+		t.Run(v.name, func(t *testing.T) {
+			var meta queryMeta
+
+			db, err := getDB(nil, func(meta_ queryMeta) { meta = meta_ })
+			assert.NoError(t, err)
+
+			err = v.run(db, "not a valid statement", []any{1})
+			assert.NotNil(t, err, "should be an error")
+
+			assertQueryErr(t,
+				meta,
+				"not a valid statement",
+				[]any{int64(1)},
+				1*time.Microsecond,
+				30*time.Microsecond,
+				fmt.Errorf("oops"),
+			)
 		})
 	}
 }
@@ -133,7 +209,7 @@ func TestTx(t *testing.T) {
 		t.Run(v.name, func(t *testing.T) {
 			var meta queryMeta
 
-			db, err := getDB(func(meta_ queryMeta) { meta = meta_ })
+			db, err := getDB(func(meta_ queryMeta) { meta = meta_ }, nil)
 			assert.NoError(t, err)
 
 			tx, err := db.BeginTx(ctx, nil)
@@ -204,7 +280,7 @@ func TestPrepare(t *testing.T) {
 	for _, v := range testCases {
 		t.Run(v.name, func(t *testing.T) {
 			var meta queryMeta
-			db, err := getDB(func(meta_ queryMeta) { meta = meta_ })
+			db, err := getDB(func(meta_ queryMeta) { meta = meta_ }, nil)
 			assert.NoError(t, err)
 
 			stmt, err := db.Prepare("select $1")
@@ -218,7 +294,7 @@ func TestPrepare(t *testing.T) {
 
 		t.Run("Prepare Context: "+v.name, func(t *testing.T) {
 			var meta queryMeta
-			db, err := getDB(func(meta_ queryMeta) { meta = meta_ })
+			db, err := getDB(func(meta_ queryMeta) { meta = meta_ }, nil)
 			assert.NoError(t, err)
 
 			stmt, err := db.PrepareContext(ctx, "select $1")
@@ -246,10 +322,23 @@ func TestNoCallback(t *testing.T) {
 }
 
 func assertQuery(t *testing.T, meta queryMeta, expectedQuery string, expectedArgs []any, minDuration time.Duration, maxDuration time.Duration) {
-
 	assert.Equal(t, expectedQuery, meta.query, "query doesnt match")
 	assert.Equal(t, expectedArgs, meta.args, "args dont match")
 	assertDurationWithin(t, minDuration, maxDuration, meta.duration)
+}
+
+func assertQueryErr(t *testing.T,
+	meta queryMeta,
+	expectedQuery string,
+	expectedArgs []any,
+	minDuration time.Duration,
+	maxDuration time.Duration,
+	err error,
+) {
+	assert.Equal(t, expectedQuery, meta.query, "query doesnt match")
+	assert.Equal(t, expectedArgs, meta.args, "args dont match")
+	assertDurationWithin(t, minDuration, maxDuration, meta.duration)
+	assert.Equal(t, err, err, "errors dont match")
 }
 
 func assertDurationWithin(t *testing.T, min time.Duration, max time.Duration, actual time.Duration) {
@@ -261,11 +350,12 @@ type queryMeta struct {
 	query    string
 	args     []any
 	duration time.Duration
+	err      error
 }
 
-func getDB(onSuccess func(meta queryMeta)) (*sql.DB, error) {
+func getDB(onSuccess func(meta queryMeta), onError func(meta queryMeta)) (*sql.DB, error) {
 
-	fn := func(ctx context.Context, query string, args []any, duration time.Duration) {
+	onSuccessMeta := func(ctx context.Context, query string, args []any, duration time.Duration) {
 		onSuccess(
 			queryMeta{
 				query:    query,
@@ -275,7 +365,20 @@ func getDB(onSuccess func(meta queryMeta)) (*sql.DB, error) {
 		)
 	}
 
-	driverName, err := Register("sqlite3", Options{OnSuccess: fn})
+	onErrorMeta := func(ctx context.Context, query string, args []any, duration time.Duration, err error) {
+		if onError != nil {
+			onError(
+				queryMeta{
+					query:    query,
+					args:     args,
+					duration: duration,
+					err:      err,
+				},
+			)
+		}
+	}
+
+	driverName, err := Register("sqlite3", Options{OnSuccess: onSuccessMeta, OnError: onErrorMeta})
 	if err != nil {
 		return nil, err
 	}

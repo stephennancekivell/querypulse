@@ -93,11 +93,10 @@ func (c zConn) Exec(query string, args []driver.Value) (driver.Result, error) {
 	if exec, ok := c.parent.(driver.Execer); ok {
 		start := time.Now()
 		res, err := exec.Exec(query, args)
+		c.options.onComplete(context.Background(), query, args, time.Since(start), err)
 		if err != nil {
 			return res, err
 		}
-		c.options.onSuccess(context.Background(), query, args, time.Since(start))
-		fmt.Printf("Exec took %v %v %v\n", time.Since(start), query, args)
 		return res, err
 	}
 
@@ -108,10 +107,10 @@ func (c zConn) ExecContext(ctx context.Context, query string, args []driver.Name
 	if execCtx, ok := c.parent.(driver.ExecerContext); ok {
 		start := time.Now()
 		res, err := execCtx.ExecContext(ctx, query, args)
+		c.options.onCompleteNamed(ctx, query, args, time.Since(start), err)
 		if err != nil {
 			return nil, err
 		}
-		c.options.onSuccessNamed(ctx, query, args, time.Since(start))
 		return res, nil
 	}
 
@@ -122,10 +121,11 @@ func (c zConn) Query(query string, args []driver.Value) (driver.Rows, error) {
 	if queryer, ok := c.parent.(driver.Queryer); ok {
 		start := time.Now()
 		rows, err := queryer.Query(query, args)
+		c.options.onComplete(context.Background(), query, args, time.Since(start), err)
 		if err != nil {
 			return rows, err
 		}
-		c.options.onSuccess(context.Background(), query, args, time.Since(start))
+
 		return rows, nil
 	}
 
@@ -136,10 +136,10 @@ func (c zConn) QueryContext(ctx context.Context, query string, args []driver.Nam
 	if queryerCtx, ok := c.parent.(driver.QueryerContext); ok {
 		start := time.Now()
 		rows, err := queryerCtx.QueryContext(ctx, query, args)
+		c.options.onCompleteNamed(ctx, query, args, time.Since(start), err)
 		if err != nil {
 			return nil, err
 		}
-		c.options.onSuccessNamed(ctx, query, args, time.Since(start))
 
 		return rows, err
 	}
@@ -229,10 +229,10 @@ func (s zStmt) Query(args []driver.Value) (driver.Rows, error) {
 
 	start := time.Now()
 	rows, err := s.parent.Query(args)
+	s.options.onComplete(context.Background(), s.query, args, time.Since(start), err)
 	if err != nil {
 		return nil, err
 	}
-	s.options.onSuccess(context.Background(), s.query, args, time.Since(start))
 
 	return rows, err
 }
@@ -241,10 +241,10 @@ func (s zStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (drive
 	start := time.Now()
 	execContext := s.parent.(driver.StmtExecContext)
 	res, err := execContext.ExecContext(ctx, args)
+	s.options.onCompleteNamed(ctx, s.query, args, time.Since(start), err)
 	if err != nil {
 		return nil, err
 	}
-	s.options.onSuccessNamed(ctx, s.query, args, time.Since(start))
 
 	return res, nil
 }
@@ -255,11 +255,10 @@ func (s zStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driv
 	// we already tested driver to implement StmtQueryContext
 	queryContext := s.parent.(driver.StmtQueryContext)
 	rows, err := queryContext.QueryContext(ctx, args)
+	s.options.onCompleteNamed(ctx, s.query, args, time.Since(start), err)
 	if err != nil {
 		return nil, err
 	}
-
-	s.options.onSuccessNamed(ctx, s.query, args, time.Since(start))
 
 	return rows, err
 }

@@ -8,17 +8,24 @@ import (
 
 type Options struct {
 	OnSuccess func(ctx context.Context, query string, args []any, duration time.Duration)
+	OnError   func(ctx context.Context, query string, args []any, duration time.Duration, err error)
 }
 
-func (o *Options) onSuccess(ctx context.Context, query string, args []driver.Value, duration time.Duration) {
-	if o.OnSuccess != nil {
+func (o *Options) onComplete(ctx context.Context, query string, args []driver.Value, duration time.Duration, err error) {
+	if err == nil && o.OnSuccess != nil {
 		o.OnSuccess(ctx, query, toAnyArgs(args), duration)
+	}
+	if err != nil && o.OnError != nil {
+		o.OnError(ctx, query, toAnyArgs(args), duration, err)
 	}
 }
 
-func (o *Options) onSuccessNamed(ctx context.Context, query string, args []driver.NamedValue, duration time.Duration) {
-	if o.OnSuccess != nil {
+func (o *Options) onCompleteNamed(ctx context.Context, query string, args []driver.NamedValue, duration time.Duration, err error) {
+	if err == nil && o.OnSuccess != nil {
 		o.OnSuccess(ctx, query, argsNamed(args), duration)
+	}
+	if err != nil && o.OnError != nil {
+		o.OnError(ctx, query, argsNamed(args), duration, err)
 	}
 }
 
